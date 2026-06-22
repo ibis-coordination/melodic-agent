@@ -16,7 +16,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "dev": "tsx src/cli.ts"
