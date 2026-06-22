@@ -82,14 +82,17 @@ Exit code 0 is success. Non-zero is logged; melodic does not retry (Harmonic alr
 
 Melodic passes the Harmonic MCP endpoint and token to the wake command via env vars, but it doesn't configure your harness's MCP discovery for you. Each harness has its own way of learning about MCP servers, and it's a one-time setup step on the host:
 
-- **Claude Code**: Setup once per agent on the host (mirrors what Harmonic's "Connect Claude Code" panel emits):
+- **Claude Code**: No `claude mcp add` step needed. The daemon writes a per-agent MCP config to `$MELODIC_AGENT_DIR/mcp-config.json` on startup, with the token stored as a `${MELODIC_HARMONIC_TOKEN}` env-var reference (Claude expands it at session start, so secrets never land on disk). The wake_command points at the file:
 
-  ```bash
-  claude mcp add --transport http harmonic-<agent-handle> <MCP_URL> \
-    --header "Authorization: Bearer <TOKEN>"
+  ```yaml
+  wake_command: |
+    claude -p \
+      --mcp-config "$MELODIC_AGENT_DIR/mcp-config.json" \
+      --append-system-prompt @"$MELODIC_AGENT_DIR/system-prompt.md" \
+      --allowedTools "mcp__harmonic-${MELODIC_AGENT_NAME}__fetch_page,mcp__harmonic-${MELODIC_AGENT_NAME}__execute_action,mcp__harmonic-${MELODIC_AGENT_NAME}__search,mcp__harmonic-${MELODIC_AGENT_NAME}__get_help"
   ```
 
-  The `harmonic-<agent-handle>` server name is the convention Harmonic's Connect flow uses, so multiple agents on one host don't collide in `~/.claude.json`. In your `wake_command`, reference the same name and pre-grant the MCP tools — Claude in `-p` (non-interactive) mode can't answer permission prompts (see the example config above).
+  Server name is `harmonic-<agent-handle>` (matching Harmonic's Connect-flow convention), so multiple agents on one host don't collide. Claude in `-p` (non-interactive) mode can't answer permission prompts, so the `--allowedTools` list above pre-grants the four MCP tools.
 
   Auth: prefer `claude login` (subscription auth carries into the subprocess) over `ANTHROPIC_API_KEY` (separate billing account; easy to confuse with your interactive session's auth and land on "credit balance too low" while talking to Claude interactively just fine).
 - **Codex**: `codex mcp add harmonic --url <MCP_URL> --bearer-token-env-var HARMONIC_TOKEN` — Codex reads the token from the env var at run time, so melodic's env-var pass-through closes the loop. The server URL still gets written to `~/.codex/config.toml`.

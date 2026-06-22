@@ -17,6 +17,7 @@ import { spawnWake } from "./spawn.js";
 import { createDispatcher } from "./dispatcher.js";
 import { startServer } from "./server.js";
 import { openAgentLogStreams } from "./log-streams.js";
+import { writeClaudeMcpConfig } from "./claude-mcp-config.js";
 import type { AgentConfig } from "./config.js";
 
 export interface DaemonOpts {
@@ -42,8 +43,18 @@ export async function startDaemon(opts: DaemonOpts): Promise<RunningDaemon> {
   const agentsDir = path.join(opts.configDir, "agents");
   const agents = new Map<string, AgentConfig>();
   for (const name of await listAgentNames(agentsDir)) {
-    const cfg = await loadAgentConfig(path.join(agentsDir, name, "melodic.yml"));
+    const agentDir = path.join(agentsDir, name);
+    const cfg = await loadAgentConfig(path.join(agentDir, "melodic.yml"));
     agents.set(name, cfg);
+    // Maintain a per-agent Claude Code MCP config file so wake commands can
+    // reference it via `--mcp-config "$MELODIC_AGENT_DIR/mcp-config.json"`.
+    // The token is a literal ${MELODIC_HARMONIC_TOKEN} reference; Claude
+    // expands env vars in MCP config headers at session start.
+    await writeClaudeMcpConfig({
+      agentDir,
+      agentHandle: name,
+      mcpEndpoint: cfg.harmonicMcpEndpoint,
+    });
   }
 
   const dispatcher = createDispatcher<WakeEvent>(async (handle, { eventType, payload }) => {
