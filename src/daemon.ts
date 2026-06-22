@@ -16,6 +16,7 @@ import { parseReference, resolveSecret } from "./secrets.js";
 import { spawnWake } from "./spawn.js";
 import { createDispatcher } from "./dispatcher.js";
 import { startServer } from "./server.js";
+import { openAgentLogStreams } from "./log-streams.js";
 import type { AgentConfig } from "./config.js";
 
 export interface DaemonOpts {
@@ -68,13 +69,20 @@ export async function startDaemon(opts: DaemonOpts): Promise<RunningDaemon> {
     env["MELODIC_HARMONIC_MCP_ENDPOINT"] = cfg.harmonicMcpEndpoint;
     env["MELODIC_HARMONIC_TOKEN"] = token;
 
-    await spawnWake({
-      command: cfg.wakeCommand,
-      cwd: cfg.workingDir,
-      env,
-      stdin: payload,
-      timeoutSeconds: cfg.timeoutSeconds,
-    });
+    const logs = await openAgentLogStreams(daemon.logDir, handle);
+    try {
+      await spawnWake({
+        command: cfg.wakeCommand,
+        cwd: cfg.workingDir,
+        env,
+        stdin: payload,
+        timeoutSeconds: cfg.timeoutSeconds,
+        stdout: logs.stdout,
+        stderr: logs.stderr,
+      });
+    } finally {
+      await logs.close();
+    }
   });
 
   const server = await startServer({

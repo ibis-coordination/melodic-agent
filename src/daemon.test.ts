@@ -185,6 +185,35 @@ test("daemon: bad signature returns 401 and no wake", async () => {
   assert.equal(existsSync(f.outputFile), false);
 });
 
+test("daemon: wake stdout/stderr land in per-agent log files", async () => {
+  const f = makeFixture();
+  // Override the wake command to write to stdout AND stderr so we can check both.
+  const agentYmlPath = path.join(f.configDir, "agents", "alice", "melodic.yml");
+  let yml = readFileSync(agentYmlPath, "utf8");
+  yml = yml.replace(/wake_command: \|[\s\S]*$/, `wake_command: |
+  echo "out-marker" && echo "err-marker" >&2
+`);
+  writeFileSync(agentYmlPath, yml);
+
+  const d = await startWithFixture(f);
+  const body = "{}";
+  await fetch(`http://${HOST}:${d.port}/webhook/alice`, {
+    method: "POST",
+    headers: {
+      "X-Harmonic-Signature": sign(body, TS, f.webhookSecret),
+      "X-Harmonic-Timestamp": String(TS),
+    },
+    body,
+  });
+
+  const stdoutLog = path.join(f.configDir, "logs", "agents", "alice", "stdout.log");
+  const stderrLog = path.join(f.configDir, "logs", "agents", "alice", "stderr.log");
+  await waitForFile(stdoutLog);
+  await waitForFile(stderrLog);
+  assert.match(readFileSync(stdoutLog, "utf8"), /out-marker/);
+  assert.match(readFileSync(stderrLog, "utf8"), /err-marker/);
+});
+
 test("daemon: stop() drains in-flight wakes and closes the server", async () => {
   const f = makeFixture();
   const d = await startWithFixture(f);
