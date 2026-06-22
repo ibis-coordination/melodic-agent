@@ -70,6 +70,7 @@ Each agent runs in its own directory; the daemon serializes per-agent (one wake 
 - **stdin**: the webhook payload, verbatim (JSON).
 - **env**, in addition to your `env:` block:
   - `MELODIC_AGENT_NAME`
+  - `MELODIC_AGENT_DIR` — absolute path to the agent's config dir; useful for referencing files like a system prompt: `--append-system-prompt @"$MELODIC_AGENT_DIR/system-prompt.md"`
   - `MELODIC_EVENT_TYPE`
   - `MELODIC_HARMONIC_MCP_ENDPOINT`
   - `MELODIC_HARMONIC_TOKEN` (resolved)

@@ -70,6 +70,7 @@ export async function startDaemon(opts: DaemonOpts): Promise<RunningDaemon> {
 
     // Melodic standard env — set last so the per-agent env: block can't shadow.
     env["MELODIC_AGENT_NAME"] = handle;
+    env["MELODIC_AGENT_DIR"] = path.join(agentsDir, handle);
     env["MELODIC_EVENT_TYPE"] = eventType;
     env["MELODIC_HARMONIC_MCP_ENDPOINT"] = cfg.harmonicMcpEndpoint;
     env["MELODIC_HARMONIC_TOKEN"] = token;
