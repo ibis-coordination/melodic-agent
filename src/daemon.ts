@@ -51,9 +51,14 @@ export async function startDaemon(opts: DaemonOpts): Promise<RunningDaemon> {
     if (!cfg) return;
     if (cfg.events && !cfg.events.includes(eventType)) return;
 
+    // Inherit the daemon's environment so common tooling works (HOME for
+    // ~/.claude.json discovery, LANG for locale-aware output, USER, TERM,
+    // PATH, etc.). The per-agent env: block overrides any inherited keys,
+    // and the MELODIC_* vars are force-set last so neither can shadow them.
     const env: Record<string, string> = {};
-    // PATH from the daemon's environment so common tools resolve.
-    if (process.env["PATH"]) env["PATH"] = process.env["PATH"];
+    for (const [k, v] of Object.entries(process.env)) {
+      if (typeof v === "string") env[k] = v;
+    }
 
     if (cfg.env) {
       for (const [k, v] of Object.entries(cfg.env)) {

@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "melodic": "dist/cli.js"
+    "melodic": "dist/bin.js"
   },
   "files": [
     "dist",

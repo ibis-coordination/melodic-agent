@@ -61,6 +61,18 @@ test("openAgentLogStreams: appends across re-opens (doesn't truncate)", async ()
   });
 });
 
+test("openAgentLogStreams: error events on streams are swallowed (don't crash the daemon)", async () => {
+  await withTempDir(async (logDir) => {
+    const streams = await openAgentLogStreams(logDir, "alice");
+    // Without an error listener attached, EventEmitter.emit("error", ...)
+    // throws synchronously. With one, it returns true. This catches the
+    // regression where logs would crash the daemon on EACCES/ENOSPC.
+    assert.doesNotThrow(() => streams.stdout.emit("error", new Error("simulated write fail")));
+    assert.doesNotThrow(() => streams.stderr.emit("error", new Error("simulated write fail")));
+    await streams.close();
+  });
+});
+
 test("openAgentLogStreams: different agents get separate dirs and files", async () => {
   await withTempDir(async (logDir) => {
     const a = await openAgentLogStreams(logDir, "alice");

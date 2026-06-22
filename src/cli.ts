@@ -1,7 +1,6 @@
-#!/usr/bin/env node
-// Entry point for the `melodic` CLI. Dispatch logic lives in runCommand so
-// it's testable without spawning a subprocess. main() is invoked only when
-// this file is run directly (via the `melodic` bin shim).
+// CLI dispatch for melodic. Imported by ./bin.ts (the actual entry point)
+// and by tests. This file has no side effects on import — runCommand must
+// be invoked explicitly.
 
 import { homedir } from "node:os";
 import path from "node:path";
@@ -104,17 +103,3 @@ Planned (not in v0.1):
 `);
 }
 
-// Run as the entry point only when invoked directly (not when imported by
-// tests). import.meta.url comparison is the ESM-native way to do this.
-const invokedAsEntry = process.argv[1] !== undefined &&
-  import.meta.url === `file://${process.argv[1]}`;
-
-if (invokedAsEntry) {
-  runCommand(process.argv.slice(2)).then(
-    (code) => process.exit(code),
-    (err) => {
-      process.stderr.write(`melodic: ${err instanceof Error ? err.message : String(err)}\n`);
-      process.exit(1);
-    },
-  );
-}

@@ -134,6 +134,35 @@ test("daemon: wake command sees MELODIC_* env vars and resolved token", async ()
   assert.match(env, new RegExp(`token=${f.token}`));
 });
 
+test("daemon: wake command inherits HOME and other env vars from the daemon", async () => {
+  // Wake harnesses like Claude Code read ~/.claude.json — without HOME
+  // they can't find their MCP config. The daemon's subprocess env should
+  // inherit process.env so common tooling works out of the box.
+  const f = makeFixture();
+  const agentYmlPath = path.join(f.configDir, "agents", "alice", "melodic.yml");
+  const yml = readFileSync(agentYmlPath, "utf8").replace(
+    /wake_command: \|[\s\S]*$/,
+    `wake_command: |
+  printf 'HOME=%s\\n' "$HOME" > ${f.envDumpFile}
+`,
+  );
+  writeFileSync(agentYmlPath, yml);
+
+  const d = await startWithFixture(f);
+  const body = "{}";
+  await fetch(`http://${HOST}:${d.port}/webhook/alice`, {
+    method: "POST",
+    headers: {
+      "X-Harmonic-Signature": sign(body, TS, f.webhookSecret),
+      "X-Harmonic-Timestamp": String(TS),
+    },
+    body,
+  });
+  await waitForFile(f.envDumpFile);
+  const env = readFileSync(f.envDumpFile, "utf8");
+  assert.match(env, new RegExp(`HOME=${process.env["HOME"]}`));
+});
+
 test("daemon: events filter drops events not in the agent's list", async () => {
   const f = makeFixture({ events: ["notifications.delivered"] });
   const d = await startWithFixture(f);

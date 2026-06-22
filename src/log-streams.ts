@@ -25,7 +25,20 @@ export async function openAgentLogStreams(logDir: string, agentHandle: string): 
   const stdout = createWriteStream(path.join(dir, "stdout.log"), { flags: "a" });
   const stderr = createWriteStream(path.join(dir, "stderr.log"), { flags: "a" });
 
+  // Attach error handlers so a write failure (disk full, ENOSPC, EACCES on
+  // the log file, etc.) doesn't crash the daemon as an unhandled 'error'
+  // event. Logs are best-effort — we'd rather lose the log line than the
+  // wake. Write a single notice to stderr so failures aren't silent.
+  attachErrorHandler(stdout, path.join(dir, "stdout.log"));
+  attachErrorHandler(stderr, path.join(dir, "stderr.log"));
+
   return { stdout, stderr, dir, close: () => closeBoth(stdout, stderr) };
+}
+
+function attachErrorHandler(stream: WriteStream, filePath: string): void {
+  stream.on("error", (err) => {
+    process.stderr.write(`melodic: log write failed for ${filePath}: ${err.message}\n`);
+  });
 }
 
 function closeBoth(a: WriteStream, b: WriteStream): Promise<void> {
